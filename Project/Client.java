@@ -1,3 +1,6 @@
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+
 public class Client {
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -11,7 +14,6 @@ public class Client {
             Registry registry = LocateRegistry.getRegistry("localhost");
             ICalc server = (ICalc) registry.lookup(name);
 
-            int result = server.factorial(n);
             System.out.println("result is " + result);
         } catch (Exception e) {
             System.err.println("Exception:");
