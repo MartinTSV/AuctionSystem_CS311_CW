@@ -3,18 +3,13 @@ import java.rmi.registry.Registry;
 
 public class Client {
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.out.println("Usage: java Client n");
-            return;
-        }
-        int n = Integer.parseInt(args[0]);
-
         try {
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
-            ICalc server = (ICalc) registry.lookup(name);
+            AddrItem server = (AddrItem) registry.lookup(name);
 
-            System.out.println("result is " + result);
+            AuctionItem item = server.getSpec(1, 2);
+            System.out.println("desc: " + item.getIDesc() + "\ntitle: " + item.getITitle());
         } catch (Exception e) {
             System.err.println("Exception:");
             e.printStackTrace();

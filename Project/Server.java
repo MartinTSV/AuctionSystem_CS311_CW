@@ -1,3 +1,6 @@
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 
 public class Server implements AddrItem {
     public Server() {
@@ -5,14 +8,16 @@ public class Server implements AddrItem {
     }
 
     public AuctionItem getSpec(int itemId, int clientId) {
-        return null;
+        AuctionItem item = new AuctionItem(itemId, "Test", "Test");
+        System.out.println("client request handled");
+        return item;
     }
 
     public static void main(String[] args) {
         try {
             Server s = new Server();
             String name = "myserver";
-            ICalc stub = (ICalc) UnicastRemoteObject.exportObject(s, 0);
+            AddrItem stub = (AddrItem) UnicastRemoteObject.exportObject(s, 0);
             Registry registry = LocateRegistry.getRegistry();
             registry.rebind(name, stub);
             System.out.println("Server ready");
