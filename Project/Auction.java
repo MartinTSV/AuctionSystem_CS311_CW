@@ -9,6 +9,7 @@ public class Auction implements Serializable {
 
     private AuctionItem item;
     private String currentBidder;
+    private boolean sold;
 
     public Auction(int auctionId, AuctionItem item, int startingPrice, int buyout) {
         this.auctionId = auctionId;
@@ -16,6 +17,8 @@ public class Auction implements Serializable {
         this.startingPrice = startingPrice;
         this.currentPrice = startingPrice;
         this.buyout = buyout;
+        this.sold = false;
+        this.currentBidder = "None";
     }
 
     public int getAuctionId() {
@@ -38,8 +41,16 @@ public class Auction implements Serializable {
         return currentPrice;
     }
 
+    public boolean getSoldStatus() {
+        return sold;
+    }
+
     public String getCurrentBidder() {
         return currentBidder;
+    }
+
+    public void changeStatus() {
+        sold = true;
     }
 
     public void newBid(int newPrice, String newBidder) {

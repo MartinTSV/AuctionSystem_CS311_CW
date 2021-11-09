@@ -1,9 +1,7 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-import java.rmi.server.UnicastRemoteObject;
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SealedObject;
 import javax.crypto.SecretKey;
 import java.util.concurrent.TimeUnit;
@@ -18,14 +16,13 @@ public class Client {
             Random rand = new Random();
             int randomInt = rand.nextInt(10000);
 
-
-            while(true) {
+            while (true) {
                 server.generateSessionKey();
                 SecretKey aesKey = server.getKey();
-                //Creating encrypter.
+                // Creating encrypter.
                 Cipher encrypter = Cipher.getInstance("AES");
                 encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
-                //Creating decrypter.
+                // Creating decrypter.
                 Cipher decrypter = Cipher.getInstance("AES");
                 decrypter.init(Cipher.DECRYPT_MODE, aesKey);
 

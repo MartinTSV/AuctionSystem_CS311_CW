@@ -19,7 +19,7 @@ public class ServerDataManager {
 
         for (int i = 0; i < 5; i++) {
             id = rand.nextInt(10000);
-            item = new AuctionItem(1, titleArray[i], descriptionArray[i], publisherArray[i]);
+            item = new AuctionItem(id, titleArray[i], descriptionArray[i], publisherArray[i]);
             auctionItems.add(item);
         }
     }
@@ -43,6 +43,16 @@ public class ServerDataManager {
 
     public ArrayList<AuctionItem> getItems() {
         return auctionItems;
+    }
+
+    /* Removes auction frtom @auctions */
+    public void removeAuction(Auction auction) {
+        auctions.remove(auction);
+    }
+
+    /* Removes item from @auctionItems */
+    public void removeItem(AuctionItem item) {
+        auctionItems.remove(item);
     }
 
     /* Adds an auction to @auctions */

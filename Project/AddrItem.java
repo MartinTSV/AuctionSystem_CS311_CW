@@ -12,4 +12,6 @@ public interface AddrItem extends Remote {
 
     public SealedObject createAuction(String itemTitle, String itemDescription, int startingPrice, int buyout,
             SealedObject clientReq) throws RemoteException;
+
+    public SealedObject closeAuction(int uniqueId, SealedObject clientReq) throws RemoteException;
 }
