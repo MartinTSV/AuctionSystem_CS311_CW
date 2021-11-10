@@ -3,6 +3,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.concurrent.Semaphore;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -16,6 +17,7 @@ public class Server implements AddrItem {
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
+    private Semaphore mutex = new Semaphore(1);
     private Random rand = new Random();
 
     public Server() {
@@ -24,16 +26,53 @@ public class Server implements AddrItem {
 
     public SealedObject getSpec(int itemId, SealedObject clientReq) {
         try {
-            AuctionItem auctionItem = new AuctionItem(itemId, "Test", "Test", "Test");
+            for (AuctionItem item : auctionItems) {
+                if (item.getIId() == itemId) {
+                    // Creating encryption
+                    Cipher cipher = Cipher.getInstance("AES");
+                    cipher.init(Cipher.ENCRYPT_MODE, aesKey);
 
-            // Creating encryption
+                    SealedObject sealedObject = new SealedObject(item, cipher);
+
+                    System.out.println("client request handled");
+                    return sealedObject;
+                }
+            }
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+            String s = "invalid id";
+            SealedObject sealedObject = new SealedObject(s, cipher);
+            System.out.println("client request handled");
+            return sealedObject;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public SealedObject viewAuctions() {
+        ArrayList<Auction> arrayList = new ArrayList<Auction>();
+        for (Auction auction : auctions) {
+            if (auction.getSoldStatus() != true) {
+                arrayList.add(auction);
+            }
+        }
+        try {
+            // Initiate cipher and create empty sealed object.
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.ENCRYPT_MODE, aesKey);
 
-            SealedObject item = new SealedObject(auctionItem, cipher);
+            SealedObject sealedObject;
 
-            System.out.println("client request handled");
-            return item;
+            if (arrayList.size() <= 0) {
+                sealedObject = new SealedObject("empty list", cipher);
+                System.out.println("buyer client request handled");
+                return sealedObject;
+            } else {
+                sealedObject = new SealedObject(arrayList, cipher);
+                System.out.println("buyer client request handled");
+                return sealedObject;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -44,22 +83,23 @@ public class Server implements AddrItem {
             SealedObject clientReq) {
         // Needs lock implementation.
         try {
-            /* Create auction item. */
-            int id = rand.nextInt(10000);
-            AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, "test");
-            dataManager.addItem(item);
-            auctionItems = dataManager.getItems();
+            Cipher encrypter = Cipher.getInstance("AES");
+            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
 
-            /* Create auction. */
+            Cipher decrypter = Cipher.getInstance("AES");
+            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+
+            String clientUUID = (String) clientReq.getObject(decrypter);
+
+            int id = rand.nextInt(10000);
+            AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, clientUUID);
+            dataManager.addItem(item);
             id = rand.nextInt(10000);
             Auction auction = new Auction(id, item, startingPrice, buyout);
             dataManager.addAuction(auction);
-            auctions = dataManager.getAuctions();
 
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+            SealedObject uniqueId = new SealedObject(id, encrypter);
 
-            SealedObject uniqueId = new SealedObject(id, cipher);
             System.out.println("seller client request handled");
             return uniqueId;
         } catch (Exception e) {
@@ -71,30 +111,30 @@ public class Server implements AddrItem {
     public SealedObject closeAuction(int uniqueId, SealedObject clientReq) {
         // Needs lock implementation.
         /* For loop for finding the correct auction */
-        for (Auction auction : auctions) {
-            if (auction.getAuctionId() == uniqueId) {
-                auction.changeStatus(); // Changes status to closed.
-                try {
+        try {
+            Cipher decrypter = Cipher.getInstance("AES");
+            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+            String clientUUID = (String) clientReq.getObject(decrypter);
+            mutex.acquire();
+            for (Auction auction : auctions) {
+                if (auction.getAuctionId() == uniqueId && auction.getItem().getPublisher().equals(clientUUID)) {
+                    auction.changeStatus(); // Changes status to closed.
                     /* Creation of an encryptor */
-                    Cipher cipher = Cipher.getInstance("AES");
-                    cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+                    Cipher encrypter = Cipher.getInstance("AES");
+                    encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
 
                     /* Sending closed auction to the SellerClient */
-                    SealedObject sealedObject = new SealedObject(auction, cipher);
+                    SealedObject sealedObject = new SealedObject(auction, encrypter);
                     System.out.println("auction closed");
+                    mutex.release();
                     return sealedObject;
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
-            } else {
-                continue;
             }
-        }
-        try {
             /* Return indicator for false ID, if no match is found in the for loop. */
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.ENCRYPT_MODE, aesKey);
             SealedObject sealedObject = new SealedObject("invalid id", cipher);
+            mutex.release();
             return sealedObject;
         } catch (Exception e) {
             e.printStackTrace();
@@ -134,6 +174,7 @@ public class Server implements AddrItem {
 
             registry.rebind(name, stub);
             System.out.println("Server ready");
+            System.out.println("Part_A Test ID: " + auctionItems.get(0).getIId());
         } catch (Exception e) {
             System.err.println("Exception:");
             e.printStackTrace();

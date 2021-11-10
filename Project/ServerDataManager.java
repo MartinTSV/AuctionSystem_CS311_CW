@@ -1,8 +1,11 @@
 import java.util.ArrayList;
 import java.util.Random;
 
+/* Manages every list needed for a functioning auctioning system */
 public class ServerDataManager {
-    /* Manages every list needed for a functioning auctioning system */
+    /*
+     * The choice of two lists is due to extensibility for possible future purposes.
+     */
     private ArrayList<Auction> auctions = new ArrayList<Auction>();
     private ArrayList<AuctionItem> auctionItems = new ArrayList<AuctionItem>();
 
