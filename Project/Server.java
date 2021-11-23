@@ -26,13 +26,13 @@ public class Server implements AddrItem {
 
     public SealedObject getSpec(int itemId, SealedObject clientReq) {
         try {
-            for (AuctionItem item : auctionItems) {
-                if (item.getIId() == itemId) {
+            for (AuctionItem auctionItem : auctionItems) {
+                if (auctionItem.getIId() == itemId) {
                     // Creating encryption
                     Cipher cipher = Cipher.getInstance("AES");
                     cipher.init(Cipher.ENCRYPT_MODE, aesKey);
 
-                    SealedObject sealedObject = new SealedObject(item, cipher);
+                    SealedObject sealedObject = new SealedObject(auctionItem, cipher);
 
                     System.out.println("client request handled");
                     return sealedObject;
@@ -40,8 +40,7 @@ public class Server implements AddrItem {
             }
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-            String s = "invalid id";
-            SealedObject sealedObject = new SealedObject(s, cipher);
+            SealedObject sealedObject = new SealedObject("invalid id", cipher);
             System.out.println("client request handled");
             return sealedObject;
         } catch (Exception e) {
@@ -79,6 +78,54 @@ public class Server implements AddrItem {
         return null;
     }
 
+    public SealedObject placeBid(int id, int bid, SealedObject clientReq) {
+        try {
+            Cipher encrypter = Cipher.getInstance("AES");
+            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+
+            Cipher decrypter = Cipher.getInstance("AES");
+            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+
+            String clientUUID = (String) clientReq.getObject(decrypter);
+
+            SealedObject sealedObject;
+
+            for (Auction auction : auctions) {
+                /* Checks if such auction exists */
+                if (auction.getAuctionId() == id && auction.getSoldStatus() != true) {
+                    if (bid <= auction.getCurrentPrice()) {
+                        sealedObject = new SealedObject("invalid bid", encrypter);
+                        System.out.println("buyer client request handled");
+                        return sealedObject;
+                    } else if (bid >= auction.getBuyout()) {
+                        /* If buyout has been reached, item is sold to bidder */
+                        mutex.acquire();
+                        auction.changeStatus(); // Sets status to sold.
+                        sealedObject = new SealedObject("buyout reached", encrypter);
+                        mutex.release();
+                        System.out.println("buyer client request handled");
+                        return sealedObject;
+                    } else {
+                        /* If bid is valid */
+                        mutex.acquire();
+                        auction.newBid(bid, clientUUID);
+                        sealedObject = new SealedObject("bid placed", encrypter);
+                        mutex.release();
+                        System.out.println("buyer client request handled");
+                        return sealedObject;
+                    }
+                }
+            }
+            /* Return indicator if no such auction exists. */
+            sealedObject = new SealedObject("invalid item", encrypter);
+            System.out.println("buyer client request handled");
+            return sealedObject;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public SealedObject createAuction(String itemTitle, String itemDescription, int startingPrice, int buyout,
             SealedObject clientReq) {
         // Needs lock implementation.
@@ -108,21 +155,21 @@ public class Server implements AddrItem {
         return null;
     }
 
-    public SealedObject closeAuction(int uniqueId, SealedObject clientReq) {
+    public SealedObject closeAuction(int auctionId, SealedObject clientReq) {
         // Needs lock implementation.
         /* For loop for finding the correct auction */
         try {
             Cipher decrypter = Cipher.getInstance("AES");
             decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+
+            Cipher encrypter = Cipher.getInstance("AES");
+            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+
             String clientUUID = (String) clientReq.getObject(decrypter);
             mutex.acquire();
             for (Auction auction : auctions) {
-                if (auction.getAuctionId() == uniqueId && auction.getItem().getPublisher().equals(clientUUID)) {
+                if (auction.getAuctionId() == auctionId && auction.getItem().getPublisher().equals(clientUUID)) {
                     auction.changeStatus(); // Changes status to closed.
-                    /* Creation of an encryptor */
-                    Cipher encrypter = Cipher.getInstance("AES");
-                    encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
-
                     /* Sending closed auction to the SellerClient */
                     SealedObject sealedObject = new SealedObject(auction, encrypter);
                     System.out.println("auction closed");
@@ -131,9 +178,7 @@ public class Server implements AddrItem {
                 }
             }
             /* Return indicator for false ID, if no match is found in the for loop. */
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-            SealedObject sealedObject = new SealedObject("invalid id", cipher);
+            SealedObject sealedObject = new SealedObject("invalid id", encrypter);
             mutex.release();
             return sealedObject;
         } catch (Exception e) {

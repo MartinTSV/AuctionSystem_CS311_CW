@@ -17,15 +17,15 @@ import java.util.UUID;
  */
 public class SellerClient {
 
-    private String uuid = UUID.randomUUID().toString();
+    private static String uuid = UUID.randomUUID().toString();
 
     public String getUUID() {
         return uuid;
     }
 
-    public void closeAuction(AddrItem server) {
+    public static void closeAuction(AddrItem server) {
         Scanner s = new Scanner(System.in);
-        System.out.println("|!| Please enter the id of the auction you'd like to close: ");
+        System.out.println("\n|!| Please enter the id of the auction you'd like to close: ");
         int uniqueId = s.nextInt();
         try {
             /* Getting sessiong key from server */
@@ -35,7 +35,7 @@ public class SellerClient {
             Cipher encrypter = getEncrypter(aesKey);
             Cipher decrypter = getDecrypter(aesKey);
 
-            SealedObject clientReq = new SealedObject(getUUID(), encrypter);
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.closeAuction(uniqueId, clientReq);
 
             if (sealedObject.getObject(decrypter).equals("invalid id")) {
@@ -50,7 +50,7 @@ public class SellerClient {
         }
     }
 
-    public void openAuction(AddrItem server) {
+    public static void openAuction(AddrItem server) {
 
         Scanner sString = new Scanner(System.in).useDelimiter("\n");// Needed for spaces.
         Scanner sInteger = new Scanner(System.in); // Separate scanner for integers.
@@ -76,7 +76,7 @@ public class SellerClient {
             Cipher encrypter = getEncrypter(aesKey);
             Cipher decrypter = getDecrypter(aesKey);
 
-            SealedObject clientReq = new SealedObject(getUUID(), encrypter); // Dummy clientReq
+            SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
                     clientReq);
             int uniqueId = (Integer) sealedItem.getObject(decrypter);
@@ -87,7 +87,7 @@ public class SellerClient {
         }
     }
 
-    public Cipher getEncrypter(SecretKey aesKey) {
+    public static Cipher getEncrypter(SecretKey aesKey) {
         try {
             Cipher encrypter = Cipher.getInstance("AES");
             encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
@@ -99,7 +99,7 @@ public class SellerClient {
         return null;
     }
 
-    public Cipher getDecrypter(SecretKey aesKey) {
+    public static Cipher getDecrypter(SecretKey aesKey) {
         try {
             Cipher encrypter = Cipher.getInstance("AES");
             encrypter.init(Cipher.DECRYPT_MODE, aesKey);
@@ -112,25 +112,28 @@ public class SellerClient {
     }
 
     public static void main(String[] args) {
-        SellerClient client = new SellerClient();
         String choice;
-        System.out.println("\n*********************************************************************************");
-        System.out.println("\nYou are now using the seller client.");
+        System.out.println("\nYou are now using the seller client, logged as: " + uuid);
         try {
             /* Binding to server */
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
+            System.out.println("Connection to server established.");
 
             while (true) {
                 Scanner scan = new Scanner(System.in);
                 System.out.println("\n|!| Please select one of the fucntions below:\n1. Create an auction item."
-                        + "\n2. Close a listed auction.");
+                        + "\n2. Close a listed auction." + "\n3. Exit client.");
                 choice = scan.nextLine();
                 if (choice.equals("1")) {
-                    client.openAuction(server);
+                    openAuction(server);
                 } else if (choice.equals("2")) {
-                    client.closeAuction(server);
+                    closeAuction(server);
+                } else if (choice.equals("3")) {
+                    System.out.println("\n\t|*| Client closed. |*|");
+                    scan.close();
+                    return;
                 } else {
                     System.out.println("\n\t|!| Please enter a valid function number. |!|");
                 }
