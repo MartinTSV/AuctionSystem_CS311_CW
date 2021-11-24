@@ -17,7 +17,6 @@ public class Client {
             System.out.println("Enter the id of an item: ");
             int itemId = scan.nextInt();
 
-            server.generateSessionKey();
             SecretKey aesKey = server.getKey();
             // Creating encrypter.
             Cipher encrypter = Cipher.getInstance("AES");

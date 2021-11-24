@@ -29,7 +29,6 @@ public class SellerClient {
         int uniqueId = s.nextInt();
         try {
             /* Getting sessiong key from server */
-            server.generateSessionKey();
             SecretKey aesKey = server.getKey();
 
             Cipher encrypter = getEncrypter(aesKey);
@@ -70,7 +69,6 @@ public class SellerClient {
 
         try {
             /* Getting sessiong key from server */
-            server.generateSessionKey();
             SecretKey aesKey = server.getKey();
 
             Cipher encrypter = getEncrypter(aesKey);
@@ -140,7 +138,6 @@ public class SellerClient {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("\n\t|*| Client closed. |*|");
         }
     }
 }

@@ -1,5 +1,6 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
@@ -8,8 +9,19 @@ import javax.crypto.Cipher;
 import javax.crypto.SealedObject;
 import javax.crypto.SecretKey;
 
+/*
+ * The purpose of this client is to provide a customer with the capabilities 
+ * to bid on current available auctions. 
+ * 
+ * 1. The customer has to be able to refresh the state of current avaiable auctions.
+ * 
+ * 2. The customer needs to be able to place bids. 
+ */
+
 public class BuyerClient {
     private ArrayList<Auction> currentAuctions = new ArrayList<Auction>();
+    private static SecretKey buyerKey;
+    private static KeyStore keyStore;
     private static String uuid = UUID.randomUUID().toString();
 
     public ArrayList<Auction> getCurrentAuctions() {
@@ -55,7 +67,6 @@ public class BuyerClient {
             System.out.println("Enter your bid: ");
             bid = sInteger.nextInt();
 
-            server.generateSessionKey();
             SecretKey aesKey = server.getKey();
 
             Cipher encrypter = getEncrypter(aesKey);
@@ -81,7 +92,6 @@ public class BuyerClient {
 
     public void fetchAuctions(AddrItem server) {
         try {
-            server.generateSessionKey();
             SecretKey aesKey = server.getKey();
 
             SealedObject sealedObject = server.viewAuctions();

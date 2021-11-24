@@ -8,8 +8,6 @@ public interface AddrItem extends Remote {
 
     public SecretKey getKey() throws RemoteException;
 
-    public void generateSessionKey() throws RemoteException;
-
     public SealedObject createAuction(String itemTitle, String itemDescription, int startingPrice, int buyout,
             SealedObject clientReq) throws RemoteException;
 

@@ -172,7 +172,7 @@ public class Server implements AddrItem {
                     auction.changeStatus(); // Changes status to closed.
                     /* Sending closed auction to the SellerClient */
                     SealedObject sealedObject = new SealedObject(auction, encrypter);
-                    System.out.println("auction closed");
+                    System.out.println("seller client request handled");
                     mutex.release();
                     return sealedObject;
                 }
@@ -216,6 +216,8 @@ public class Server implements AddrItem {
             String name = "myserver";
             AddrItem stub = (AddrItem) UnicastRemoteObject.exportObject(s, PORT);
             Registry registry = LocateRegistry.getRegistry();
+
+            s.generateSessionKey();
 
             registry.rebind(name, stub);
             System.out.println("Server ready");
