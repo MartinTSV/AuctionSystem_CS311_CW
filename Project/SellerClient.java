@@ -77,9 +77,14 @@ public class SellerClient {
             SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
                     clientReq);
-            int uniqueId = (Integer) sealedItem.getObject(decrypter);
+            if (sealedItem.getObject(decrypter).equals("invalid bid")) {
+                System.out.println("\n\t|!| Bid is less than starting price, auction creation is canceled. |!|");
+            } else {
+                int uniqueId = (Integer) sealedItem.getObject(decrypter);
 
-            System.out.println("\n\t|*| Your auction has been created, this is your unique id: " + uniqueId + " |*|\n");
+                System.out.println(
+                        "\n\t|*| Your auction has been created, this is your unique id: " + uniqueId + " |*|\n");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

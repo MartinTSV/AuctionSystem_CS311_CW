@@ -109,7 +109,7 @@ public class Server implements AddrItem {
                         /* If bid is valid */
                         mutex.acquire();
                         auction.newBid(bid, clientUUID);
-                        sealedObject = new SealedObject("bid placed", encrypter);
+                        sealedObject = new SealedObject(auction, encrypter);
                         mutex.release();
                         System.out.println("buyer client request handled");
                         return sealedObject;
@@ -136,19 +136,26 @@ public class Server implements AddrItem {
             Cipher decrypter = Cipher.getInstance("AES");
             decrypter.init(Cipher.DECRYPT_MODE, aesKey);
 
-            String clientUUID = (String) clientReq.getObject(decrypter);
+            SealedObject sealedObject;
+            if (startingPrice > buyout) {
+                System.out.println("seller client request handled");
+                sealedObject = new SealedObject("invalid bid", encrypter);
+                return sealedObject;
+            } else {
+                String clientUUID = (String) clientReq.getObject(decrypter);
 
-            int id = rand.nextInt(10000);
-            AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, clientUUID);
-            dataManager.addItem(item);
-            id = rand.nextInt(10000);
-            Auction auction = new Auction(id, item, startingPrice, buyout);
-            dataManager.addAuction(auction);
+                int id = rand.nextInt(10000);
+                AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, clientUUID);
+                dataManager.addItem(item);
+                id = rand.nextInt(10000);
+                Auction auction = new Auction(id, item, startingPrice, buyout);
+                dataManager.addAuction(auction);
 
-            SealedObject uniqueId = new SealedObject(id, encrypter);
+                sealedObject = new SealedObject(id, encrypter);
 
-            System.out.println("seller client request handled");
-            return uniqueId;
+                System.out.println("seller client request handled");
+                return sealedObject;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -168,7 +175,8 @@ public class Server implements AddrItem {
             String clientUUID = (String) clientReq.getObject(decrypter);
             mutex.acquire();
             for (Auction auction : auctions) {
-                if (auction.getAuctionId() == auctionId && auction.getItem().getPublisher().equals(clientUUID)) {
+                if (auction.getAuctionId() == auctionId && auction.getItem().getPublisher().equals(clientUUID)
+                        && auction.getSoldStatus() != true) {
                     auction.changeStatus(); // Changes status to closed.
                     /* Sending closed auction to the SellerClient */
                     SealedObject sealedObject = new SealedObject(auction, encrypter);
