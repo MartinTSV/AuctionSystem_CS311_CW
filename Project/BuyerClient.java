@@ -9,16 +9,7 @@ import javax.crypto.SealedObject;
 import javax.crypto.SecretKey;
 
 public class BuyerClient {
-    private ArrayList<Auction> currentAuctions = new ArrayList<Auction>();
     private static String uuid = UUID.randomUUID().toString();
-
-    public ArrayList<Auction> getCurrentAuctions() {
-        return currentAuctions;
-    }
-
-    public void updateCurrentAuctions(ArrayList<Auction> currentAuctions) {
-        this.currentAuctions = currentAuctions;
-    }
 
     public Cipher getEncrypter(SecretKey aesKey) {
         try {
@@ -71,7 +62,8 @@ public class BuyerClient {
             } else if (sealedObject.getObject(decrypter).equals("invalid item")) {
                 System.out.println("\n\t|!| You have entered an invalid auction id or item might have been sold. |!|");
             } else {
-                System.out.println("\n\t|$| Bid successfully placed! |$|");
+                Auction auction = (Auction) sealedObject.getObject(decrypter);
+                System.out.println("\n\t|$| Bid successfully placed! |$| " + auction);
             }
 
         } catch (Exception e) {
@@ -93,7 +85,6 @@ public class BuyerClient {
             } else {
                 @SuppressWarnings("unchecked")
                 ArrayList<Auction> auctions = (ArrayList<Auction>) sealedObject.getObject(decrypter);
-                updateCurrentAuctions(auctions);
                 AuctionItem item;
                 for (Auction auction : auctions) {
                     item = auction.getItem();
