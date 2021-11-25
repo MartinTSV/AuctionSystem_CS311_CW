@@ -1,8 +1,5 @@
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.security.KeyStore;
 import java.util.Scanner;
 
 import javax.crypto.Cipher;
@@ -24,6 +21,8 @@ public class SellerClient {
 
     private static SecretKey aesKey;
 
+    private static KeyManager km = new KeyManager();
+
     public String getUUID() {
         return uuid;
     }
@@ -34,8 +33,8 @@ public class SellerClient {
         int uniqueId = s.nextInt();
         try {
 
-            Cipher encrypter = getEncrypter(aesKey);
-            Cipher decrypter = getDecrypter(aesKey);
+            Cipher encrypter = km.getEncrypter(aesKey);
+            Cipher decrypter = km.getDecrypter(aesKey);
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.closeAuction(uniqueId, clientReq);
@@ -73,8 +72,8 @@ public class SellerClient {
         try {
             /* Getting sessiong key from server */
 
-            Cipher encrypter = getEncrypter(aesKey);
-            Cipher decrypter = getDecrypter(aesKey);
+            Cipher encrypter = km.getEncrypter(aesKey);
+            Cipher decrypter = km.getDecrypter(aesKey);
 
             SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
@@ -92,44 +91,6 @@ public class SellerClient {
         }
     }
 
-    public static Cipher getEncrypter(SecretKey aesKey) {
-        try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
-
-            return encrypter;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public static Cipher getDecrypter(SecretKey aesKey) {
-        try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.DECRYPT_MODE, aesKey);
-
-            return encrypter;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public static SecretKey LoadFromKeyStore(String filepath, String password, String alias) {
-        try {
-            KeyStore keyStore = KeyStore.getInstance("JCEKS");
-            InputStream readStream = new FileInputStream(filepath);
-            keyStore.load(readStream, password.toCharArray());
-            SecretKey key = (SecretKey) keyStore.getKey("serverPublic", password.toCharArray());
-            readStream.close();
-            return key;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     public static void main(String[] args) {
         String choice;
         System.out.println("\nYou are now using the seller client, logged as: " + uuid);
@@ -142,7 +103,7 @@ public class SellerClient {
             System.out.println("Connection to server established.");
             /* Getting key from server */
             String filepath = "keystore.keystore";
-            aesKey = LoadFromKeyStore(filepath, "password", "serverPublic");
+            aesKey = km.LoadFromKeyStore(filepath, "password", "serverPublic");
 
             while (true) {
                 Scanner scan = new Scanner(System.in);

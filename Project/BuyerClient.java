@@ -1,8 +1,5 @@
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
@@ -22,45 +19,9 @@ import javax.crypto.SecretKey;
 
 public class BuyerClient {
     private static SecretKey aesKey; // Public server key.
+    private static KeyManager km = new KeyManager();
+
     private static String uuid = UUID.randomUUID().toString();
-
-    public static SecretKey LoadFromKeyStore(String filepath, String password, String alias) {
-        try {
-            KeyStore keyStore = KeyStore.getInstance("JCEKS");
-            InputStream readStream = new FileInputStream(filepath);
-            keyStore.load(readStream, password.toCharArray());
-            SecretKey key = (SecretKey) keyStore.getKey("serverPublic", password.toCharArray());
-            readStream.close();
-            return key;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public Cipher getEncrypter(SecretKey aesKey) {
-        try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
-
-            return encrypter;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public static Cipher getDecrypter(SecretKey aesKey) {
-        try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.DECRYPT_MODE, aesKey);
-
-            return encrypter;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
 
     public void placeBid(AddrItem server) {
         try {
@@ -73,8 +34,8 @@ public class BuyerClient {
             System.out.println("Enter your bid: ");
             bid = sInteger.nextInt();
 
-            Cipher encrypter = getEncrypter(aesKey);
-            Cipher decrypter = getDecrypter(aesKey);
+            Cipher encrypter = km.getEncrypter(aesKey);
+            Cipher decrypter = km.getDecrypter(aesKey);
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.placeBid(id, bid, clientReq);
@@ -99,7 +60,7 @@ public class BuyerClient {
 
             SealedObject sealedObject = server.viewAuctions();
 
-            Cipher decrypter = getDecrypter(aesKey);
+            Cipher decrypter = km.getDecrypter(aesKey);
 
             if (sealedObject.getObject(decrypter).equals("empty list")) {
                 System.out.println("No active auctions, check again later.");
@@ -135,7 +96,7 @@ public class BuyerClient {
 
             /* Store server public key */
             String filepath = "keystore.keystore";
-            aesKey = LoadFromKeyStore(filepath, "password", "serverPublic");
+            aesKey = km.LoadFromKeyStore(filepath, "password", "serverPublic");
             System.out.println("Key received");
 
             String choice;

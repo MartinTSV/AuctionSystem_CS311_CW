@@ -1,11 +1,7 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
@@ -19,10 +15,14 @@ public class Server implements AddrItem {
 
     private static final int PORT = 0; // Port switch.
     private static SecretKey aesKey;
+    private static KeyManager km = new KeyManager();
+
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
+
     private Semaphore mutex = new Semaphore(1);
+
     private Random rand = new Random();
 
     public Server() {
@@ -200,24 +200,25 @@ public class Server implements AddrItem {
         return null;
     }
 
-    public static void StoreToKeyStore(SecretKey keyToStore, String password, String filepath, String alias) {
-        try {
-            File file = new File(filepath);
-            KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
-            if (!file.exists()) {
-                javaKeyStore.load(null, null);
-            } else {
-                javaKeyStore.load(new FileInputStream(file), password.toCharArray());
-            }
+    // public static void StoreToKeyStore(SecretKey keyToStore, String password,
+    // String filepath, String alias) {
+    // try {
+    // File file = new File(filepath);
+    // KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
+    // if (!file.exists()) {
+    // javaKeyStore.load(null, null);
+    // } else {
+    // javaKeyStore.load(new FileInputStream(file), password.toCharArray());
+    // }
 
-            javaKeyStore.setKeyEntry(alias, keyToStore, password.toCharArray(), null);
-            OutputStream writeStream = new FileOutputStream(filepath);
-            javaKeyStore.store(writeStream, password.toCharArray());
-            writeStream.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    // javaKeyStore.setKeyEntry(alias, keyToStore, password.toCharArray(), null);
+    // OutputStream writeStream = new FileOutputStream(filepath);
+    // javaKeyStore.store(writeStream, password.toCharArray());
+    // writeStream.close();
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // }
+    // }
 
     public void generateSessionKey() {
         try {
@@ -252,7 +253,7 @@ public class Server implements AddrItem {
             /* Store public key */
             s.generateSessionKey();
             String filepath = "keystore.keystore";
-            StoreToKeyStore(aesKey, "password", filepath, "serverPublic");
+            km.StoreToKeyStore(aesKey, "password", filepath, "serverPublic");
 
             registry.rebind(name, stub);
             System.out.println("Server ready");
