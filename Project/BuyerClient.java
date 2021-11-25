@@ -19,6 +19,7 @@ import javax.crypto.SecretKey;
 
 public class BuyerClient {
     private static SecretKey key; // Public server key.
+    private static SecretKey privateKey; // Private client key.
     private static KeyManager km = new KeyManager();
 
     private static String uuid = UUID.randomUUID().toString();
@@ -58,9 +59,11 @@ public class BuyerClient {
     public static void fetchAuctions(AddrItem server) {
         try {
 
-            SealedObject sealedObject = server.viewAuctions();
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+            SealedObject sealedObject = server.viewAuctions(clientReq);
 
-            Cipher decrypter = km.getDecrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
             if (sealedObject.getObject(decrypter).equals("empty list")) {
                 System.out.println("No active auctions, check again later.");
@@ -96,6 +99,9 @@ public class BuyerClient {
             /* Store server public key */
             String filepath = "keystore.keystore";
             key = km.LoadFromKeyStore(filepath, "password", "serverPublic");
+            /* Generate and store client private key */
+            privateKey = km.generateSessionKey();
+            km.StoreToKeyStore(privateKey, "password", "keystore.keystore", uuid);
 
             String choice;
             while (true) {

@@ -54,7 +54,7 @@ public class Server implements AddrItem {
         return null;
     }
 
-    public SealedObject viewAuctions() {
+    public SealedObject viewAuctions(SealedObject clientReq) {
         ArrayList<Auction> arrayList = new ArrayList<Auction>();
         for (Auction auction : auctions) {
             if (auction.getSoldStatus() != true) {
@@ -62,17 +62,21 @@ public class Server implements AddrItem {
             }
         }
         try {
-            // Initiate cipher and create empty sealed object.
-            Cipher cipher = km.getEncrypter(key, "DES");
+            /* Finding the client key */
+            Cipher decrypter = km.getDecrypter(key, "DES");
+            String clientUUID = (String) clientReq.getObject(decrypter);
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
 
+            /* Initiating an encrypter with the client key */
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
             SealedObject sealedObject;
 
             if (arrayList.size() <= 0) {
-                sealedObject = new SealedObject("empty list", cipher);
+                sealedObject = new SealedObject("empty list", encrypter);
                 System.out.println("buyer client request handled");
                 return sealedObject;
             } else {
-                sealedObject = new SealedObject(arrayList, cipher);
+                sealedObject = new SealedObject(arrayList, encrypter);
                 System.out.println("buyer client request handled");
                 return sealedObject;
             }
