@@ -88,11 +88,11 @@ public class Server implements AddrItem {
 
     public SealedObject placeBid(int id, int bid, SealedObject clientReq) {
         try {
-            Cipher encrypter = km.getEncrypter(key, "DES");
-
             Cipher decrypter = km.getDecrypter(key, "DES");
-
             String clientUUID = (String) clientReq.getObject(decrypter);
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
 
             SealedObject sealedObject;
 

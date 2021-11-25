@@ -1,6 +1,7 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.UUID;
 
@@ -36,7 +37,7 @@ public class BuyerClient {
             bid = sInteger.nextInt();
 
             Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.placeBid(id, bid, clientReq);
@@ -60,10 +61,10 @@ public class BuyerClient {
         try {
 
             Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.viewAuctions(clientReq);
-
-            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
             if (sealedObject.getObject(decrypter).equals("empty list")) {
                 System.out.println("No active auctions, check again later.");
@@ -93,8 +94,6 @@ public class BuyerClient {
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
-            System.out.println("\nYou are now using the buyer client, logged as: " + uuid);
-            System.out.println("Connection to server established.");
 
             /* Store server public key */
             String filepath = "keystore.keystore";
@@ -103,26 +102,53 @@ public class BuyerClient {
             privateKey = km.generateSessionKey();
             km.StoreToKeyStore(privateKey, "password", "keystore.keystore", uuid);
 
-            String choice;
-            while (true) {
-                Scanner scan = new Scanner(System.in);
-                System.out.println("\n|!| Please select one of the fucntions below:\n1. List auctions."
-                        + "\n2. Place a bid." + "\n3. Exit client.");
+            /* Forge challenge elements for server verification. */
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
-                choice = scan.nextLine();
-                if (choice.equals("1")) {
-                    fetchAuctions(server);
-                } else if (choice.equals("2")) {
-                    placeBid(server);
-                } else if (choice.equals("3")) {
-                    System.out.println("\n\t|*| Client closed. |*|");
-                    scan.close();
-                    return;
-                } else {
-                    System.out.println("\n\t|!| Please enter a valid function number. |!|");
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+            int challengeInt = new Random().nextInt(10000); // Generate a challenge
+            String challengeSt = String.valueOf(challengeInt); // Turn challenge to string.
+
+            /* Verify server response. */
+            String serverResponse = (String) server.verifyServer(km.encryptString(challengeSt, key, "DES"), clientReq)
+                    .getObject(decrypter);
+            String clientChallenge = uuid + challengeSt;
+
+            /* Verify client */
+            String serverChallenge = (String) server.challengeClient(clientReq).getObject(privateKey);
+            serverChallenge = uuid + serverChallenge;
+            Boolean result = (Boolean) server.verifyClient(new SealedObject(serverChallenge, encrypter), clientReq)
+                    .getObject(decrypter);
+
+            if (!result) {
+                System.out.println("\n\t|!| Server couldn't authenticate this client. |!|");
+            } else if (!serverResponse.equals(clientChallenge)) {
+                System.out.println("\n\t|!| Couldn't authenticate server. |!|");
+            } else {
+
+                System.out.println("\n\t|!| Connection to server established. |!|");
+                System.out.println("\tYou are now using the buyer client, logged as: " + uuid);
+
+                while (true) {
+                    Scanner scan = new Scanner(System.in);
+                    System.out.println("\n|!| Please select one of the fucntions below:\n1. List auctions."
+                            + "\n2. Place a bid." + "\n3. Exit client.");
+
+                    String choice = scan.nextLine();
+                    if (choice.equals("1")) {
+                        fetchAuctions(server);
+                    } else if (choice.equals("2")) {
+                        placeBid(server);
+                    } else if (choice.equals("3")) {
+                        System.out.println("\n\t|*| Client closed. |*|");
+                        scan.close();
+                        return;
+                    } else {
+                        System.out.println("\n\t|!| Please enter a valid function number. |!|");
+                    }
                 }
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }

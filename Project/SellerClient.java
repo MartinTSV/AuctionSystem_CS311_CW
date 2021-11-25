@@ -127,9 +127,9 @@ public class SellerClient {
                     .getObject(decrypter);
 
             if (!serverResponse.equals(clientChallenge)) {
-                System.out.println("Couldn't authenticate server.");
+                System.out.println("\n\t|!| Couldn't authenticate server. |!|");
             } else if (!result) {
-                System.out.println("Server couldn't authenticate this client.");
+                System.out.println("\n\t|!| Server couldn't authenticate this client. |!|");
             } else {
                 System.out.println("\n\t|!| Connection to server established. |!|");
                 System.out.println("\tYou are now using the seller client, logged as: " + uuid);
