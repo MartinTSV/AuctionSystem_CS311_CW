@@ -1,5 +1,6 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.Random;
 import java.util.Scanner;
 
 import javax.crypto.Cipher;
@@ -35,7 +36,7 @@ public class SellerClient {
         try {
 
             Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.closeAuction(uniqueId, clientReq);
@@ -74,7 +75,7 @@ public class SellerClient {
             /* Getting sessiong key from server */
 
             Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
@@ -101,7 +102,6 @@ public class SellerClient {
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
-            System.out.println("Connection to server established.");
             /* Getting public key from server */
             String filepath = "keystore.keystore";
             key = km.LoadFromKeyStore(filepath, "password", "serverPublic");
@@ -109,22 +109,36 @@ public class SellerClient {
             privateKey = km.generateSessionKey();
             km.StoreToKeyStore(privateKey, "password", filepath, uuid);
 
-            while (true) {
-                Scanner scan = new Scanner(System.in);
-                System.out.println("\n|!| Please select one of the fucntions below:\n1. Create an auction item."
-                        + "\n2. Close a listed auction." + "\n3. Exit client.");
-                choice = scan.nextLine();
-                if (choice.equals("1")) {
-                    openAuction(server);
-                } else if (choice.equals("2")) {
-                    closeAuction(server);
-                } else if (choice.equals("3")) {
-                    System.out.println("\n\t|*| Client closed. |*|");
-                    scan.close();
-                    return;
-                } else {
-                    System.out.println("\n\t|!| Please enter a valid function number. |!|");
+            /* Verify server connection */
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+            int challengeInt = new Random().nextInt(10000);
+            String challengeSt = String.valueOf(challengeInt);
+            SealedObject sealedObject = server.verifyServer(km.encryptString(challengeSt, key, "DES"), clientReq);
+            String serverResponse = (String) sealedObject.getObject(km.getDecrypter(privateKey, "DES"));
+            String clientChallenge = uuid + challengeSt;
+
+            if (serverResponse.equals(clientChallenge)) {
+                System.out.println("\n\t|!| Connection to server established. |!|");
+                while (true) {
+                    Scanner scan = new Scanner(System.in);
+                    System.out.println("\n|!| Please select one of the fucntions below:\n1. Create an auction item."
+                            + "\n2. Close a listed auction." + "\n3. Exit client.");
+                    choice = scan.nextLine();
+                    if (choice.equals("1")) {
+                        openAuction(server);
+                    } else if (choice.equals("2")) {
+                        closeAuction(server);
+                    } else if (choice.equals("3")) {
+                        System.out.println("\n\t|*| Client closed. |*|");
+                        scan.close();
+                        return;
+                    } else {
+                        System.out.println("\n\t|!| Please enter a valid function number. |!|");
+                    }
                 }
+            } else {
+                System.out.println("\n\t |!| Couldn't verify server. |!|");
             }
         } catch (Exception e) {
             e.printStackTrace();

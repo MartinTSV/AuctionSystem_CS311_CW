@@ -13,8 +13,6 @@ import java.security.KeyStore;
 
 public class KeyManager {
 
-    private static final String UNICODE_FORMAT = "UTF-8";
-
     public SecretKey generateSessionKey() {
         try {
             KeyGenerator kgen = KeyGenerator.getInstance("DES");
@@ -27,7 +25,7 @@ public class KeyManager {
         return null;
     }
 
-    public void StoreToKeyStore(SecretKey keyToStore, String password, String filepath, String alias) {
+    public void StoreToKeyStore(SecretKey key, String password, String filepath, String alias) {
         try {
             File file = new File(filepath);
             KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
@@ -37,7 +35,7 @@ public class KeyManager {
                 javaKeyStore.load(new FileInputStream(file), password.toCharArray());
             }
 
-            javaKeyStore.setKeyEntry(alias, keyToStore, password.toCharArray(), null);
+            javaKeyStore.setKeyEntry(alias, key, password.toCharArray(), null);
             OutputStream writeStream = new FileOutputStream(filepath);
             javaKeyStore.store(writeStream, password.toCharArray());
             writeStream.close();
@@ -84,9 +82,10 @@ public class KeyManager {
         return null;
     }
 
-    public static byte[] encryptString(String dataToEncrypt, SecretKey key, Cipher cipher) {
+    public byte[] encryptString(String dataToEncrypt, SecretKey key, String encryptionType) {
         try {
-            byte[] text = dataToEncrypt.getBytes(UNICODE_FORMAT);
+            byte[] text = dataToEncrypt.getBytes("UTF-8");
+            Cipher cipher = Cipher.getInstance(encryptionType);
             cipher.init(Cipher.ENCRYPT_MODE, key);
             byte[] textEncrypted = cipher.doFinal(text);
             return textEncrypted;
@@ -97,8 +96,9 @@ public class KeyManager {
         return null;
     }
 
-    public static String decryptString(byte[] dataToDecrypt, SecretKey myKey, Cipher cipher) {
+    public String decryptString(byte[] dataToDecrypt, SecretKey myKey, String encryptionType) {
         try {
+            Cipher cipher = Cipher.getInstance(encryptionType);
             cipher.init(Cipher.DECRYPT_MODE, myKey);
             byte[] textDecrypted = cipher.doFinal(dataToDecrypt);
             String result = new String(textDecrypted);

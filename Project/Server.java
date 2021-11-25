@@ -131,9 +131,14 @@ public class Server implements AddrItem {
             SealedObject clientReq) {
         // Needs lock implementation.
         try {
-            Cipher encrypter = km.getEncrypter(key, "DES");
 
+            /* Find who the client is. */
             Cipher decrypter = km.getDecrypter(key, "DES");
+            String clientUUID = (String) clientReq.getObject(decrypter);
+
+            /* Get client private key. */
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
 
             SealedObject sealedObject;
             if (startingPrice > buyout) {
@@ -141,7 +146,6 @@ public class Server implements AddrItem {
                 sealedObject = new SealedObject("invalid bid", encrypter);
                 return sealedObject;
             } else {
-                String clientUUID = (String) clientReq.getObject(decrypter);
 
                 int id = rand.nextInt(10000);
                 AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, clientUUID);
@@ -167,9 +171,11 @@ public class Server implements AddrItem {
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
 
-            Cipher encrypter = km.getEncrypter(key, "DES");
-
             String clientUUID = (String) clientReq.getObject(decrypter);
+
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
+
             mutex.acquire();
             for (Auction auction : auctions) {
                 if (auction.getAuctionId() == auctionId && auction.getItem().getPublisher().equals(clientUUID)
@@ -185,6 +191,22 @@ public class Server implements AddrItem {
             /* Return indicator for false ID, if no match is found in the for loop. */
             SealedObject sealedObject = new SealedObject("invalid id", encrypter);
             mutex.release();
+            return sealedObject;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public SealedObject verifyServer(byte[] challenge, SealedObject clientReq) {
+        try {
+            Cipher decrypter = km.getDecrypter(key, "DES");
+            String clientUUID = (String) clientReq.getObject(decrypter);
+
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            String verification = clientUUID + km.decryptString(challenge, key, "DES");
+
+            SealedObject sealedObject = new SealedObject(verification, km.getEncrypter(clientKey, "DES"));
             return sealedObject;
         } catch (Exception e) {
             e.printStackTrace();
