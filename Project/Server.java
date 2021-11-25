@@ -17,6 +17,12 @@ public class Server implements AddrItem {
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
+
+    /*
+     * A semaphore needed for preventing bid and other interaction interceptions
+     * with server.
+     */
+
     private Semaphore mutex = new Semaphore(1);
     private Random rand = new Random();
 
@@ -184,10 +190,6 @@ public class Server implements AddrItem {
             e.printStackTrace();
         }
         return null;
-    }
-
-    public SecretKey getKey() {
-        return key;
     }
 
     public static void main(String[] args) {

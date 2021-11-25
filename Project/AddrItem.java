@@ -6,8 +6,6 @@ import javax.crypto.SecretKey;
 public interface AddrItem extends Remote {
     public SealedObject getSpec(int itemId, SealedObject clientReq) throws RemoteException;
 
-    public SecretKey getKey() throws RemoteException;
-
     public SealedObject createAuction(String itemTitle, String itemDescription, int startingPrice, int buyout,
             SealedObject clientReq) throws RemoteException;
 

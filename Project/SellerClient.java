@@ -19,7 +19,8 @@ public class SellerClient {
 
     private static String uuid = UUID.randomUUID().toString();
 
-    private static SecretKey key;
+    private static SecretKey key; // Server public key.
+    private static SecretKey privateKey; // Client private key.
 
     private static KeyManager km = new KeyManager();
 
@@ -101,9 +102,12 @@ public class SellerClient {
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
             System.out.println("Connection to server established.");
-            /* Getting key from server */
+            /* Getting public key from server */
             String filepath = "keystore.keystore";
             key = km.LoadFromKeyStore(filepath, "password", "serverPublic");
+            /* Generating private key from server */
+            privateKey = km.generateSessionKey();
+            km.StoreToKeyStore(privateKey, "password", filepath, uuid);
 
             while (true) {
                 Scanner scan = new Scanner(System.in);
