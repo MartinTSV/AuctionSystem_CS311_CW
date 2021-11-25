@@ -6,7 +6,6 @@ import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SealedObject;
 
@@ -187,16 +186,6 @@ public class Server implements AddrItem {
         return null;
     }
 
-    public void generateSessionKey() {
-        try {
-            KeyGenerator kgen = KeyGenerator.getInstance("DES");
-            kgen.init(56);
-            key = kgen.generateKey();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public SecretKey getKey() {
         return key;
     }
@@ -218,7 +207,7 @@ public class Server implements AddrItem {
             Registry registry = LocateRegistry.getRegistry();
 
             /* Store public key */
-            s.generateSessionKey();
+            key = km.generateSessionKey();
             String filepath = "keystore.keystore";
             km.StoreToKeyStore(key, "password", filepath, "serverPublic");
 

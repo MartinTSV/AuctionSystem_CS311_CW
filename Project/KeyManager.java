@@ -1,4 +1,10 @@
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+
+import javax.crypto.KeyGenerator;
+
+import javax.crypto.KeyGenerator;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -10,6 +16,18 @@ import java.security.KeyStore;
 /* The purpose of this class is to provide the necessary methods for encryption and decryption. */
 
 public class KeyManager {
+
+    public SecretKey generateSessionKey() {
+        try {
+            KeyGenerator kgen = KeyGenerator.getInstance("DES");
+            kgen.init(56);
+            SecretKey key = kgen.generateKey();
+            return key;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public void StoreToKeyStore(SecretKey keyToStore, String password, String filepath, String alias) {
         try {

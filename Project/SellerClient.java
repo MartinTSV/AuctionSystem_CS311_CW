@@ -33,7 +33,6 @@ public class SellerClient {
         int uniqueId = s.nextInt();
         try {
 
-            System.out.println(key.getAlgorithm());
             Cipher encrypter = km.getEncrypter(key, "DES");
             Cipher decrypter = km.getDecrypter(key, "DES");
 
