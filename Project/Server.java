@@ -2,6 +2,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 
@@ -14,13 +15,13 @@ public class Server implements AddrItem {
     private static final int PORT = 0; // Port switch.
     private static SecretKey key;
     private static KeyManager km = new KeyManager();
+
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
-
+    private static HashMap<String, String> challenges = new HashMap<String, String>();
     /*
-     * A semaphore needed for preventing bid and other interaction interceptions
-     * with server.
+     * A semaphore needed for preventing bid and other interaction interceptions.
      */
 
     private Semaphore mutex = new Semaphore(1);
@@ -208,6 +209,52 @@ public class Server implements AddrItem {
 
             SealedObject sealedObject = new SealedObject(verification, km.getEncrypter(clientKey, "DES"));
             return sealedObject;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public SealedObject challengeClient(SealedObject clientReq) {
+        try {
+            Cipher decrypter = km.getDecrypter(key, "DES");
+
+            String clientUUID = (String) clientReq.getObject(decrypter);
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
+
+            String challenge = String.valueOf(new Random().nextInt(10000));
+
+            if (challenges.containsKey(clientUUID)) {
+                challenges.replace(clientUUID, challenge);
+                return new SealedObject(challenge, encrypter);
+            } else {
+                challenges.put(clientUUID, challenge);
+                return new SealedObject(challenge, encrypter);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public SealedObject verifyClient(SealedObject verification, SealedObject clientReq) {
+        try {
+            Cipher decrypter = km.getDecrypter(key, "DES");
+
+            String clientVerification = (String) verification.getObject(decrypter);
+            String clientUUID = (String) clientReq.getObject(decrypter);
+            String serverChallenge = challenges.get(clientUUID);
+            serverChallenge = clientUUID + serverChallenge;
+
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
+
+            if (serverChallenge.equals(clientVerification)) {
+                return new SealedObject(true, encrypter);
+            } else {
+                return new SealedObject(false, encrypter);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
