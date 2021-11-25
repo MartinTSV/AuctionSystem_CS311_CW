@@ -1,4 +1,3 @@
-
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -14,15 +13,12 @@ import javax.crypto.SealedObject;
 public class Server implements AddrItem {
 
     private static final int PORT = 0; // Port switch.
-    private static SecretKey aesKey;
+    private static SecretKey key;
     private static KeyManager km = new KeyManager();
-
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
-
     private Semaphore mutex = new Semaphore(1);
-
     private Random rand = new Random();
 
     public Server() {
@@ -34,8 +30,7 @@ public class Server implements AddrItem {
             for (AuctionItem auctionItem : auctionItems) {
                 if (auctionItem.getIId() == itemId) {
                     // Creating encryption
-                    Cipher cipher = Cipher.getInstance("AES");
-                    cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+                    Cipher cipher = km.getEncrypter(key, "DES");
 
                     SealedObject sealedObject = new SealedObject(auctionItem, cipher);
 
@@ -43,8 +38,7 @@ public class Server implements AddrItem {
                     return sealedObject;
                 }
             }
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher cipher = km.getEncrypter(key, "DES");
             SealedObject sealedObject = new SealedObject("invalid id", cipher);
             System.out.println("client request handled");
             return sealedObject;
@@ -63,8 +57,7 @@ public class Server implements AddrItem {
         }
         try {
             // Initiate cipher and create empty sealed object.
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher cipher = km.getEncrypter(key, "DES");
 
             SealedObject sealedObject;
 
@@ -85,11 +78,9 @@ public class Server implements AddrItem {
 
     public SealedObject placeBid(int id, int bid, SealedObject clientReq) {
         try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher encrypter = km.getEncrypter(key, "DES");
 
-            Cipher decrypter = Cipher.getInstance("AES");
-            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             String clientUUID = (String) clientReq.getObject(decrypter);
 
@@ -135,11 +126,9 @@ public class Server implements AddrItem {
             SealedObject clientReq) {
         // Needs lock implementation.
         try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher encrypter = km.getEncrypter(key, "DES");
 
-            Cipher decrypter = Cipher.getInstance("AES");
-            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             SealedObject sealedObject;
             if (startingPrice > buyout) {
@@ -171,11 +160,9 @@ public class Server implements AddrItem {
         // Needs lock implementation.
         /* For loop for finding the correct auction */
         try {
-            Cipher decrypter = Cipher.getInstance("AES");
-            decrypter.init(Cipher.DECRYPT_MODE, aesKey);
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher encrypter = km.getEncrypter(key, "DES");
 
             String clientUUID = (String) clientReq.getObject(decrypter);
             mutex.acquire();
@@ -200,38 +187,18 @@ public class Server implements AddrItem {
         return null;
     }
 
-    // public static void StoreToKeyStore(SecretKey keyToStore, String password,
-    // String filepath, String alias) {
-    // try {
-    // File file = new File(filepath);
-    // KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
-    // if (!file.exists()) {
-    // javaKeyStore.load(null, null);
-    // } else {
-    // javaKeyStore.load(new FileInputStream(file), password.toCharArray());
-    // }
-
-    // javaKeyStore.setKeyEntry(alias, keyToStore, password.toCharArray(), null);
-    // OutputStream writeStream = new FileOutputStream(filepath);
-    // javaKeyStore.store(writeStream, password.toCharArray());
-    // writeStream.close();
-    // } catch (Exception e) {
-    // e.printStackTrace();
-    // }
-    // }
-
     public void generateSessionKey() {
         try {
-            KeyGenerator kgen = KeyGenerator.getInstance("AES");
-            kgen.init(128);
-            aesKey = kgen.generateKey();
+            KeyGenerator kgen = KeyGenerator.getInstance("DES");
+            kgen.init(56);
+            key = kgen.generateKey();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public SecretKey getKey() {
-        return aesKey;
+        return key;
     }
 
     public static void main(String[] args) {
@@ -253,7 +220,7 @@ public class Server implements AddrItem {
             /* Store public key */
             s.generateSessionKey();
             String filepath = "keystore.keystore";
-            km.StoreToKeyStore(aesKey, "password", filepath, "serverPublic");
+            km.StoreToKeyStore(key, "password", filepath, "serverPublic");
 
             registry.rebind(name, stub);
             System.out.println("Server ready");

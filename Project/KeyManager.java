@@ -44,10 +44,10 @@ public class KeyManager {
         return null;
     }
 
-    public Cipher getEncrypter(SecretKey aesKey) {
+    public Cipher getEncrypter(SecretKey key, String encryptionType) {
         try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.ENCRYPT_MODE, aesKey);
+            Cipher encrypter = Cipher.getInstance(encryptionType);
+            encrypter.init(Cipher.ENCRYPT_MODE, key);
 
             return encrypter;
         } catch (Exception e) {
@@ -56,12 +56,12 @@ public class KeyManager {
         return null;
     }
 
-    public Cipher getDecrypter(SecretKey aesKey) {
+    public Cipher getDecrypter(SecretKey key, String encryptionType) {
         try {
-            Cipher encrypter = Cipher.getInstance("AES");
-            encrypter.init(Cipher.DECRYPT_MODE, aesKey);
+            Cipher decrypter = Cipher.getInstance(encryptionType);
+            decrypter.init(Cipher.DECRYPT_MODE, key);
 
-            return encrypter;
+            return decrypter;
         } catch (Exception e) {
             e.printStackTrace();
         }

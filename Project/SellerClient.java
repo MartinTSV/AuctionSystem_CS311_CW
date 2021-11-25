@@ -19,7 +19,7 @@ public class SellerClient {
 
     private static String uuid = UUID.randomUUID().toString();
 
-    private static SecretKey aesKey;
+    private static SecretKey key;
 
     private static KeyManager km = new KeyManager();
 
@@ -33,8 +33,9 @@ public class SellerClient {
         int uniqueId = s.nextInt();
         try {
 
-            Cipher encrypter = km.getEncrypter(aesKey);
-            Cipher decrypter = km.getDecrypter(aesKey);
+            System.out.println(key.getAlgorithm());
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.closeAuction(uniqueId, clientReq);
@@ -72,8 +73,8 @@ public class SellerClient {
         try {
             /* Getting sessiong key from server */
 
-            Cipher encrypter = km.getEncrypter(aesKey);
-            Cipher decrypter = km.getDecrypter(aesKey);
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
@@ -103,7 +104,7 @@ public class SellerClient {
             System.out.println("Connection to server established.");
             /* Getting key from server */
             String filepath = "keystore.keystore";
-            aesKey = km.LoadFromKeyStore(filepath, "password", "serverPublic");
+            key = km.LoadFromKeyStore(filepath, "password", "serverPublic");
 
             while (true) {
                 Scanner scan = new Scanner(System.in);

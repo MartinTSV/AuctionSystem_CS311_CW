@@ -18,12 +18,12 @@ import javax.crypto.SecretKey;
  */
 
 public class BuyerClient {
-    private static SecretKey aesKey; // Public server key.
+    private static SecretKey key; // Public server key.
     private static KeyManager km = new KeyManager();
 
     private static String uuid = UUID.randomUUID().toString();
 
-    public void placeBid(AddrItem server) {
+    public static void placeBid(AddrItem server) {
         try {
             int id;
             int bid;
@@ -34,8 +34,8 @@ public class BuyerClient {
             System.out.println("Enter your bid: ");
             bid = sInteger.nextInt();
 
-            Cipher encrypter = km.getEncrypter(aesKey);
-            Cipher decrypter = km.getDecrypter(aesKey);
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.placeBid(id, bid, clientReq);
@@ -55,12 +55,12 @@ public class BuyerClient {
         }
     }
 
-    public void fetchAuctions(AddrItem server) {
+    public static void fetchAuctions(AddrItem server) {
         try {
 
             SealedObject sealedObject = server.viewAuctions();
 
-            Cipher decrypter = km.getDecrypter(aesKey);
+            Cipher decrypter = km.getDecrypter(key, "DES");
 
             if (sealedObject.getObject(decrypter).equals("empty list")) {
                 System.out.println("No active auctions, check again later.");
@@ -74,7 +74,7 @@ public class BuyerClient {
                     System.out.println("|Auction ID: " + auction.getAuctionId());
                     System.out.println("|Item Title: " + item.getITitle());
                     System.out.println("|Item Description: " + item.getIDesc());
-                    System.out.println("|Current Price: " + auction.getCurrentPrice() + "\n");
+                    System.out.println("|Current Price: " + auction.getCurrentPrice() + "$\n");
                 }
             }
 
@@ -85,7 +85,6 @@ public class BuyerClient {
 
     public static void main(String[] args) {
         try {
-            BuyerClient client = new BuyerClient();
 
             /* Binds to server */
             String name = "myserver";
@@ -96,8 +95,7 @@ public class BuyerClient {
 
             /* Store server public key */
             String filepath = "keystore.keystore";
-            aesKey = km.LoadFromKeyStore(filepath, "password", "serverPublic");
-            System.out.println("Key received");
+            key = km.LoadFromKeyStore(filepath, "password", "serverPublic");
 
             String choice;
             while (true) {
@@ -107,9 +105,9 @@ public class BuyerClient {
 
                 choice = scan.nextLine();
                 if (choice.equals("1")) {
-                    client.fetchAuctions(server);
+                    fetchAuctions(server);
                 } else if (choice.equals("2")) {
-                    client.placeBid(server);
+                    placeBid(server);
                 } else if (choice.equals("3")) {
                     System.out.println("\n\t|*| Client closed. |*|");
                     scan.close();
