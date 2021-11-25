@@ -1,6 +1,11 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
@@ -13,7 +18,7 @@ import javax.crypto.SealedObject;
 public class Server implements AddrItem {
 
     private static final int PORT = 0; // Port switch.
-    private SecretKey aesKey;
+    private static SecretKey aesKey;
     private static ServerDataManager dataManager = new ServerDataManager();
     private static ArrayList<Auction> auctions = dataManager.getAuctions();
     private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
@@ -195,11 +200,30 @@ public class Server implements AddrItem {
         return null;
     }
 
+    public static void StoreToKeyStore(SecretKey keyToStore, String password, String filepath, String alias) {
+        try {
+            File file = new File(filepath);
+            KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
+            if (!file.exists()) {
+                javaKeyStore.load(null, null);
+            } else {
+                javaKeyStore.load(new FileInputStream(file), password.toCharArray());
+            }
+
+            javaKeyStore.setKeyEntry(alias, keyToStore, password.toCharArray(), null);
+            OutputStream writeStream = new FileOutputStream(filepath);
+            javaKeyStore.store(writeStream, password.toCharArray());
+            writeStream.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public void generateSessionKey() {
         try {
             KeyGenerator kgen = KeyGenerator.getInstance("AES");
             kgen.init(128);
-            this.aesKey = kgen.generateKey();
+            aesKey = kgen.generateKey();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -225,7 +249,10 @@ public class Server implements AddrItem {
             AddrItem stub = (AddrItem) UnicastRemoteObject.exportObject(s, PORT);
             Registry registry = LocateRegistry.getRegistry();
 
+            /* Store public key */
             s.generateSessionKey();
+            String filepath = "keystore.keystore";
+            StoreToKeyStore(aesKey, "password", filepath, "serverPublic");
 
             registry.rebind(name, stub);
             System.out.println("Server ready");

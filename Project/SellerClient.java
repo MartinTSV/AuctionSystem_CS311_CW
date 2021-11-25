@@ -1,5 +1,8 @@
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.security.KeyStore;
 import java.util.Scanner;
 
 import javax.crypto.Cipher;
@@ -19,6 +22,8 @@ public class SellerClient {
 
     private static String uuid = UUID.randomUUID().toString();
 
+    private static SecretKey aesKey;
+
     public String getUUID() {
         return uuid;
     }
@@ -28,8 +33,6 @@ public class SellerClient {
         System.out.println("\n|!| Please enter the id of the auction you'd like to close: ");
         int uniqueId = s.nextInt();
         try {
-            /* Getting sessiong key from server */
-            SecretKey aesKey = server.getKey();
 
             Cipher encrypter = getEncrypter(aesKey);
             Cipher decrypter = getDecrypter(aesKey);
@@ -69,7 +72,6 @@ public class SellerClient {
 
         try {
             /* Getting sessiong key from server */
-            SecretKey aesKey = server.getKey();
 
             Cipher encrypter = getEncrypter(aesKey);
             Cipher decrypter = getDecrypter(aesKey);
@@ -114,15 +116,33 @@ public class SellerClient {
         return null;
     }
 
+    public static SecretKey LoadFromKeyStore(String filepath, String password, String alias) {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("JCEKS");
+            InputStream readStream = new FileInputStream(filepath);
+            keyStore.load(readStream, password.toCharArray());
+            SecretKey key = (SecretKey) keyStore.getKey("serverPublic", password.toCharArray());
+            readStream.close();
+            return key;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static void main(String[] args) {
         String choice;
         System.out.println("\nYou are now using the seller client, logged as: " + uuid);
+
         try {
             /* Binding to server */
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
             System.out.println("Connection to server established.");
+            /* Getting key from server */
+            String filepath = "keystore.keystore";
+            aesKey = LoadFromKeyStore(filepath, "password", "serverPublic");
 
             while (true) {
                 Scanner scan = new Scanner(System.in);

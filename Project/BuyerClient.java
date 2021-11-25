@@ -1,3 +1,5 @@
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.security.KeyStore;
@@ -19,9 +21,22 @@ import javax.crypto.SecretKey;
  */
 
 public class BuyerClient {
-    private static SecretKey buyerKey;
-    private static KeyStore keyStore;
+    private static SecretKey aesKey; // Public server key.
     private static String uuid = UUID.randomUUID().toString();
+
+    public static SecretKey LoadFromKeyStore(String filepath, String password, String alias) {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("JCEKS");
+            InputStream readStream = new FileInputStream(filepath);
+            keyStore.load(readStream, password.toCharArray());
+            SecretKey key = (SecretKey) keyStore.getKey("serverPublic", password.toCharArray());
+            readStream.close();
+            return key;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public Cipher getEncrypter(SecretKey aesKey) {
         try {
@@ -58,8 +73,6 @@ public class BuyerClient {
             System.out.println("Enter your bid: ");
             bid = sInteger.nextInt();
 
-            SecretKey aesKey = server.getKey();
-
             Cipher encrypter = getEncrypter(aesKey);
             Cipher decrypter = getDecrypter(aesKey);
 
@@ -83,7 +96,6 @@ public class BuyerClient {
 
     public void fetchAuctions(AddrItem server) {
         try {
-            SecretKey aesKey = server.getKey();
 
             SealedObject sealedObject = server.viewAuctions();
 
@@ -113,11 +125,18 @@ public class BuyerClient {
     public static void main(String[] args) {
         try {
             BuyerClient client = new BuyerClient();
+
+            /* Binds to server */
             String name = "myserver";
             Registry registry = LocateRegistry.getRegistry("localhost");
             AddrItem server = (AddrItem) registry.lookup(name);
             System.out.println("\nYou are now using the buyer client, logged as: " + uuid);
             System.out.println("Connection to server established.");
+
+            /* Store server public key */
+            String filepath = "keystore.keystore";
+            aesKey = LoadFromKeyStore(filepath, "password", "serverPublic");
+            System.out.println("Key received");
 
             String choice;
             while (true) {
