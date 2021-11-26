@@ -19,7 +19,6 @@ import java.util.UUID;
 public class SellerClient {
 
     private static String uuid = UUID.randomUUID().toString();
-
     private static SecretKey key; // Server public key.
     private static SecretKey privateKey; // Client private key.
 
@@ -35,8 +34,9 @@ public class SellerClient {
         int uniqueId = s.nextInt();
         try {
 
+            /* Initiating encrypter and decrypter */
             Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES"); // Uses a private key to decrypt.
 
             SealedObject clientReq = new SealedObject(uuid, encrypter);
             SealedObject sealedObject = server.closeAuction(uniqueId, clientReq);
@@ -45,8 +45,13 @@ public class SellerClient {
                 System.out.println("\n\t|!| You have entered an invalid auction id. |!|");
             } else {
                 Auction auction = (Auction) sealedObject.getObject(decrypter);
-                System.out.println("\n\t|$| Auction has been sold for " + auction.getCurrentPrice() + "$."
-                        + "\n\t|$| Winner is " + auction.getCurrentBidder());
+
+                if (auction.getCurrentBidder().equals("None")) {
+                    System.out.println("\n\t|*| Auction has been closed, no bidders were found. |*|");
+                } else {
+                    System.out.println("\n\t|$| Auction has been closed for " + auction.getCurrentPrice() + "$."
+                            + "\n\t|$| Winner is " + auction.getCurrentBidder());
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -72,10 +77,10 @@ public class SellerClient {
         int buyoutPrice = sInteger.nextInt();
 
         try {
-            /* Getting sessiong key from server */
 
+            /* Getting sessiong key from server */
             Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES"); // Private key for decryption.
 
             SealedObject clientReq = new SealedObject(uuid, encrypter); // Dummy clientReq
             SealedObject sealedItem = server.createAuction(itemName, itemDescription, startingPrice, buyoutPrice,
@@ -93,6 +98,54 @@ public class SellerClient {
         }
     }
 
+    /*
+     * Challenges server to decrypt uuid and challenge, combine them and return them
+     * encrypted with client's private key.
+     */
+    public static Boolean authenticateServer(AddrItem server) {
+        try {
+            /* Forge challenge elements for server verification. */
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+
+            int challengeInt = new Random().nextInt(10000); // Generate a challenge
+            String challengeSt = String.valueOf(challengeInt); // Turn challenge to string.
+
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+            SealedObject challengeSeal = new SealedObject(challengeSt, encrypter);
+            /* Verify server response. */
+            String serverResponse = (String) server.verifyServer(challengeSeal, clientReq).getObject(decrypter);
+            String clientChallenge = uuid + challengeSt;
+
+            return serverResponse.equals(clientChallenge);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /*
+     * Client accepting server's challenge to decrypt and apply to identificator by
+     * decrypting with it's own private key in function @challengeClient() and
+     * return the result to server for verification in function @verifyClient().
+     */
+    public static Boolean authenticateClient(AddrItem server) {
+        try {
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+            Cipher encrypter = km.getEncrypter(key, "DES");
+
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+            String serverChallenge = (String) server.challengeClient(clientReq).getObject(privateKey);
+            serverChallenge = uuid + serverChallenge;
+            Boolean result = (Boolean) server.verifyClient(new SealedObject(serverChallenge, encrypter), clientReq)
+                    .getObject(decrypter);
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static void main(String[] args) {
         String choice;
         try {
@@ -107,32 +160,13 @@ public class SellerClient {
             privateKey = km.generateSessionKey();
             km.StoreToKeyStore(privateKey, "password", filepath, uuid);
 
-            /* Forge challenge elements for server verification. */
-            Cipher encrypter = km.getEncrypter(key, "DES");
-            Cipher decrypter = km.getDecrypter(privateKey, "DES");
-
-            SealedObject clientReq = new SealedObject(uuid, encrypter);
-            int challengeInt = new Random().nextInt(10000); // Generate a challenge
-            String challengeSt = String.valueOf(challengeInt); // Turn challenge to string.
-
-            /* Verify server response. */
-
-            String serverResponse = (String) server.verifyServer(km.encryptString(challengeSt, key, "DES"), clientReq)
-                    .getObject(decrypter);
-            String clientChallenge = uuid + challengeSt;
-            /* Verify client */
-            String serverChallenge = (String) server.challengeClient(clientReq).getObject(privateKey);
-            serverChallenge = uuid + serverChallenge;
-            Boolean result = (Boolean) server.verifyClient(new SealedObject(serverChallenge, encrypter), clientReq)
-                    .getObject(decrypter);
-
-            if (!serverResponse.equals(clientChallenge)) {
-                System.out.println("\n\t|!| Couldn't authenticate server. |!|");
-            } else if (!result) {
-                System.out.println("\n\t|!| Server couldn't authenticate this client. |!|");
+            if (!authenticateServer(server)) {
+                System.out.println("\nCouldn't authenticate server. |!|");
+            } else if (!authenticateClient(server)) {
+                System.out.println("\nServer couldn't authenticate this client. |!|");
             } else {
-                System.out.println("\n\t|!| Connection to server established. |!|");
-                System.out.println("\tYou are now using the seller client, logged as: " + uuid);
+                System.out.println("|*| Connection to server established. |*|");
+                System.out.println("You are now using the seller client, logged as: " + uuid);
 
                 while (true) {
                     Scanner scan = new Scanner(System.in);

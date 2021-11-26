@@ -31,29 +31,10 @@ public class Server implements AddrItem {
         super();
     }
 
-    public SealedObject getSpec(int itemId, SealedObject clientReq) {
-        try {
-            for (AuctionItem auctionItem : auctionItems) {
-                if (auctionItem.getIId() == itemId) {
-                    // Creating encryption
-                    Cipher cipher = km.getEncrypter(key, "DES");
-
-                    SealedObject sealedObject = new SealedObject(auctionItem, cipher);
-
-                    System.out.println("client request handled");
-                    return sealedObject;
-                }
-            }
-            Cipher cipher = km.getEncrypter(key, "DES");
-            SealedObject sealedObject = new SealedObject("invalid id", cipher);
-            System.out.println("client request handled");
-            return sealedObject;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
+    /*
+     * Return an array list of current active auctions by encrypting it with the
+     * requester's private key.
+     */
     public SealedObject viewAuctions(SealedObject clientReq) {
         ArrayList<Auction> arrayList = new ArrayList<Auction>();
         for (Auction auction : auctions) {
@@ -86,6 +67,12 @@ public class Server implements AddrItem {
         return null;
     }
 
+    /*
+     * Placing a bid for active auctions, contains error handling for when the bid
+     * is lower or equal to the current one.
+     * 
+     * Implements a mutex to prevent bid interceptions.
+     */
     public SealedObject placeBid(int id, int bid, SealedObject clientReq) {
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
@@ -132,9 +119,11 @@ public class Server implements AddrItem {
         return null;
     }
 
+    /*
+     * Creates an auction with a random id, returns the id as an encrypted object.
+     */
     public SealedObject createAuction(String itemTitle, String itemDescription, int startingPrice, int buyout,
             SealedObject clientReq) {
-        // Needs lock implementation.
         try {
 
             /* Find who the client is. */
@@ -170,9 +159,14 @@ public class Server implements AddrItem {
         return null;
     }
 
+    /*
+     * Closes an auction, also if successfully closed sends the auction to the
+     * client. Requires uuid stored in clientReq in order to verify that the user
+     * hosts the auction.
+     * 
+     * Uses a mutex to stop bids while the auction is being closed.
+     */
     public SealedObject closeAuction(int auctionId, SealedObject clientReq) {
-        // Needs lock implementation.
-        /* For loop for finding the correct auction */
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
 
@@ -203,13 +197,19 @@ public class Server implements AddrItem {
         return null;
     }
 
-    public SealedObject verifyServer(byte[] challenge, SealedObject clientReq) {
+    /*
+     * Server verification, decrypts a challenge passed by the client, encrypted
+     * with server's public key, finds the client's private key and again encrypts
+     * the challenge, returning it back to the client.
+     */
+    public SealedObject verifyServer(SealedObject challenge, SealedObject clientReq) {
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
             String clientUUID = (String) clientReq.getObject(decrypter);
+            String clientChallenge = (String) challenge.getObject(decrypter);
 
             SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
-            String verification = clientUUID + km.decryptString(challenge, key, "DES");
+            String verification = clientUUID + clientChallenge;
 
             SealedObject sealedObject = new SealedObject(verification, km.getEncrypter(clientKey, "DES"));
             return sealedObject;
@@ -219,6 +219,14 @@ public class Server implements AddrItem {
         return null;
     }
 
+    /*
+     * Step I of client verification.
+     * 
+     * Sends a challenge to the client, encrypted with client's private key.
+     * 
+     * The challenge is stored in a @challenges, which is a hashmap that uses the
+     * uuid as a key for challenge access.
+     */
     public SealedObject challengeClient(SealedObject clientReq) {
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
@@ -242,6 +250,12 @@ public class Server implements AddrItem {
         return null;
     }
 
+    /*
+     * Step II of client verfication. The client returns the challenge from Part I,
+     * encrypted with the server's private key.
+     * 
+     * returns true if the challenge matches the one from Part I.
+     */
     public SealedObject verifyClient(SealedObject verification, SealedObject clientReq) {
         try {
             Cipher decrypter = km.getDecrypter(key, "DES");
@@ -255,6 +269,7 @@ public class Server implements AddrItem {
             Cipher encrypter = km.getEncrypter(clientKey, "DES");
 
             if (serverChallenge.equals(clientVerification)) {
+                System.out.println(clientUUID + " connected to server");
                 return new SealedObject(true, encrypter);
             } else {
                 return new SealedObject(false, encrypter);
@@ -288,7 +303,7 @@ public class Server implements AddrItem {
 
             registry.rebind(name, stub);
             System.out.println("Server ready");
-            System.out.println("Part_A Test ID: " + auctionItems.get(0).getIId());
+
         } catch (Exception e) {
             System.err.println("Exception:");
             e.printStackTrace();

@@ -13,6 +13,7 @@ import java.security.KeyStore;
 
 public class KeyManager {
 
+    /* Generates a 56 bit DES key. */
     public SecretKey generateSessionKey() {
         try {
             KeyGenerator kgen = KeyGenerator.getInstance("DES");
@@ -25,12 +26,13 @@ public class KeyManager {
         return null;
     }
 
+    /* Stores @key to a keystore file. */
     public void StoreToKeyStore(SecretKey key, String password, String filepath, String alias) {
         try {
             File file = new File(filepath);
             KeyStore javaKeyStore = KeyStore.getInstance("JCEKS");
             if (!file.exists()) {
-                javaKeyStore.load(null, null);
+                javaKeyStore.load(null, null); // Create a new file if one doesn't exist.
             } else {
                 javaKeyStore.load(new FileInputStream(file), password.toCharArray());
             }
@@ -44,6 +46,7 @@ public class KeyManager {
         }
     }
 
+    /* Load a key from keystore file, by finding it by @alias */
     public SecretKey LoadFromKeyStore(String filepath, String password, String alias) {
         try {
             KeyStore keyStore = KeyStore.getInstance("JCEKS");
@@ -58,6 +61,7 @@ public class KeyManager {
         return null;
     }
 
+    /* Creates a Cipher with ENCRYPT_MODE initiated. */
     public Cipher getEncrypter(SecretKey key, String encryptionType) {
         try {
             Cipher encrypter = Cipher.getInstance(encryptionType);
@@ -70,39 +74,13 @@ public class KeyManager {
         return null;
     }
 
+    /* Creates a Cipher with DECRYPT_MODE initiated. */
     public Cipher getDecrypter(SecretKey key, String encryptionType) {
         try {
             Cipher decrypter = Cipher.getInstance(encryptionType);
             decrypter.init(Cipher.DECRYPT_MODE, key);
 
             return decrypter;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public byte[] encryptString(String dataToEncrypt, SecretKey key, String encryptionType) {
-        try {
-            byte[] text = dataToEncrypt.getBytes("UTF-8");
-            Cipher cipher = Cipher.getInstance(encryptionType);
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            byte[] textEncrypted = cipher.doFinal(text);
-            return textEncrypted;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public String decryptString(byte[] dataToDecrypt, SecretKey myKey, String encryptionType) {
-        try {
-            Cipher cipher = Cipher.getInstance(encryptionType);
-            cipher.init(Cipher.DECRYPT_MODE, myKey);
-            byte[] textDecrypted = cipher.doFinal(dataToDecrypt);
-            String result = new String(textDecrypted);
-            return result;
         } catch (Exception e) {
             e.printStackTrace();
         }
