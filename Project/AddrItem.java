@@ -9,6 +9,8 @@ public interface AddrItem extends Remote {
 
     public SealedObject closeAuction(int uniqueId, SealedObject clientReq) throws RemoteException;
 
+    public SealedObject viewClosedAuctions(SealedObject clientReq) throws RemoteException;
+
     public SealedObject viewAuctions(SealedObject clientReq) throws RemoteException;
 
     public SealedObject verifyServer(SealedObject challenge, SealedObject clientReq) throws RemoteException;

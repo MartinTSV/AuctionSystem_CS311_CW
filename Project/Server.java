@@ -1,3 +1,4 @@
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -93,6 +94,7 @@ public class Server implements AddrItem {
                     } else if (bid >= auction.getBuyout()) {
                         /* If buyout has been reached, item is sold to bidder */
                         mutex.acquire();
+                        auction.newBid(bid, clientUUID);
                         auction.changeStatus(); // Sets status to sold.
                         sealedObject = new SealedObject("buyout reached", encrypter);
                         mutex.release();
@@ -191,6 +193,31 @@ public class Server implements AddrItem {
             SealedObject sealedObject = new SealedObject("invalid id", encrypter);
             mutex.release();
             return sealedObject;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public SealedObject viewClosedAuctions(SealedObject clientReq) {
+        try {
+            Cipher decrypter = km.getDecrypter(key, "DES");
+            String clientUUID = (String) clientReq.getObject(decrypter);
+            SecretKey clientKey = km.LoadFromKeyStore("keystore.keystore", "password", clientUUID);
+            Cipher encrypter = km.getEncrypter(clientKey, "DES");
+
+            ArrayList<Auction> closedAuctions = new ArrayList<Auction>();
+            for (Auction auction : auctions) {
+                if (auction.getItem().getPublisher().equals(clientUUID) && auction.getSoldStatus()) {
+                    closedAuctions.add(auction);
+                }
+            }
+
+            if (closedAuctions.size() <= 0) {
+                return new SealedObject("empty", encrypter);
+            } else {
+                return new SealedObject(closedAuctions, encrypter);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -309,4 +336,5 @@ public class Server implements AddrItem {
             e.printStackTrace();
         }
     }
+
 }

@@ -1,5 +1,6 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -47,10 +48,44 @@ public class SellerClient {
                 Auction auction = (Auction) sealedObject.getObject(decrypter);
 
                 if (auction.getCurrentBidder().equals("None")) {
-                    System.out.println("\n\t|*| Auction has been closed, no bidders were found. |*|");
+                    System.out.println(
+                            "\n\t|*| Auction has been closed, no bidders were found and won't appear in your closed auctions. |*|");
                 } else {
                     System.out.println("\n\t|$| Auction has been closed for " + auction.getCurrentPrice() + "$."
                             + "\n\t|$| Winner is " + auction.getCurrentBidder());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void fetchClosedAuctions(AddrItem server) {
+        try {
+
+            Cipher encrypter = km.getEncrypter(key, "DES");
+            Cipher decrypter = km.getDecrypter(privateKey, "DES");
+
+            SealedObject clientReq = new SealedObject(uuid, encrypter);
+
+            SealedObject sealedObject = server.viewClosedAuctions(clientReq);
+
+            if (sealedObject.getObject(decrypter).equals("empty")) {
+                System.out.println("\n\t|!| You have no closed auctions. |!|");
+            } else {
+                @SuppressWarnings("unchecked")
+                ArrayList<Auction> auctions = (ArrayList<Auction>) sealedObject.getObject(decrypter);
+
+                AuctionItem item;
+                for (Auction auction : auctions) {
+                    if (!auction.getCurrentBidder().equals("None")) {
+                        item = auction.getItem();
+                        System.out.println(" _____________________________");
+                        System.out.println("|Item Title: " + item.getITitle());
+                        System.out.println("|Item Description: " + item.getIDesc());
+                        System.out.println("|Sold for: " + auction.getCurrentPrice() + "$");
+                        System.out.println("|Sold to: " + auction.getCurrentBidder() + "\n");
+                    }
                 }
             }
         } catch (Exception e) {
@@ -171,13 +206,15 @@ public class SellerClient {
                 while (true) {
                     Scanner scan = new Scanner(System.in);
                     System.out.println("\n|!| Please select one of the fucntions below:\n1. Create an auction item."
-                            + "\n2. Close a listed auction." + "\n3. Exit client.");
+                            + "\n2. Close a listed auction." + "\n3. View your closed auctions." + "\n4. Exit client.");
                     choice = scan.nextLine();
                     if (choice.equals("1")) {
                         openAuction(server);
                     } else if (choice.equals("2")) {
                         closeAuction(server);
                     } else if (choice.equals("3")) {
+                        fetchClosedAuctions(server);
+                    } else if (choice.equals("4")) {
                         System.out.println("\n\t|*| Client closed. |*|");
                         scan.close();
                         return;
