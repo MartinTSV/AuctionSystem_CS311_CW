@@ -3,12 +3,27 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+
+import org.jgroups.Address;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.View;
+import org.jgroups.Message.TransientFlag;
+import org.jgroups.blocks.RequestOptions;
+import org.jgroups.blocks.ResponseMode;
+import org.jgroups.blocks.RpcDispatcher;
+import org.jgroups.util.RspList;
+
 import javax.crypto.SealedObject;
 
 public class Server implements AddrItem {
@@ -17,19 +32,32 @@ public class Server implements AddrItem {
     private static SecretKey key;
     private static KeyManager km = new KeyManager();
 
-    private static ServerDataManager dataManager = new ServerDataManager();
-    private static ArrayList<Auction> auctions = dataManager.getAuctions();
-    private static ArrayList<AuctionItem> auctionItems = dataManager.getItems();
+    private static ArrayList<Auction> auctions;
+    private static ArrayList<AuctionItem> auctionItems = new ArrayList<AuctionItem>();
     private static HashMap<String, String> challenges = new HashMap<String, String>();
+
     /*
      * A semaphore needed for preventing bid and other interaction interceptions.
      */
-
     private Semaphore mutex = new Semaphore(1);
     private Random rand = new Random();
 
-    public Server() {
+    /* Replication */
+    private static JChannel channel;
+    private static RequestOptions opts;
+    private static RpcDispatcher dispatcher;
+
+    private static RspList rspList;
+
+    public Server() throws Exception {
         super();
+        channel = new JChannel();
+        opts = new RequestOptions(ResponseMode.GET_ALL, 1000L).setTransientFlags(TransientFlag.DONT_LOOPBACK);
+        dispatcher = new RpcDispatcher(channel, this);
+        channel.connect("MyCluster");
+
+        rspList = dispatcher.callRemoteMethods(null, "getReplicaAuctions", new Object[] {}, new Class[] {}, opts);
+        auctions = majority() == null ? new ArrayList<Auction>() : (ArrayList<Auction>) majority();
     }
 
     /*
@@ -96,6 +124,10 @@ public class Server implements AddrItem {
                         mutex.acquire();
                         auction.newBid(bid, clientUUID);
                         auction.changeStatus(); // Sets status to sold.
+                        rspList = dispatcher.callRemoteMethods(null, "applyBid",
+                                new Object[] { auction, "sold", bid, clientUUID },
+                                new Class[] { Auction.class, String.class, int.class, String.class },
+                                opts);
                         sealedObject = new SealedObject("buyout reached", encrypter);
                         mutex.release();
                         System.out.println("buyer client request handled");
@@ -104,6 +136,10 @@ public class Server implements AddrItem {
                         /* If bid is valid */
                         mutex.acquire();
                         auction.newBid(bid, clientUUID);
+                        rspList = dispatcher.callRemoteMethods(null, "applyBid",
+                                new Object[] { auction, "not sold", bid, clientUUID },
+                                new Class[] { Auction.class, String.class, int.class, String.class },
+                                opts);
                         sealedObject = new SealedObject(auction, encrypter);
                         mutex.release();
                         System.out.println("buyer client request handled");
@@ -145,13 +181,14 @@ public class Server implements AddrItem {
 
                 int id = rand.nextInt(10000);
                 AuctionItem item = new AuctionItem(id, itemTitle, itemDescription, clientUUID);
-                dataManager.addItem(item);
+                auctionItems.add(item);
                 id = rand.nextInt(10000);
                 Auction auction = new Auction(id, item, startingPrice, buyout);
-                dataManager.addAuction(auction);
-
+                auctions.add(auction);
                 sealedObject = new SealedObject(id, encrypter);
-
+                rspList = dispatcher.callRemoteMethods(null, "addAuction", new Object[] { auction },
+                        new Class[] { Auction.class },
+                        opts);
                 System.out.println("seller client request handled");
                 return sealedObject;
             }
@@ -182,6 +219,9 @@ public class Server implements AddrItem {
                 if (auction.getAuctionId() == auctionId && auction.getItem().getPublisher().equals(clientUUID)
                         && auction.getSoldStatus() != true) {
                     auction.changeStatus(); // Changes status to closed.
+                    rspList = dispatcher.callRemoteMethods(null, "closeAuction", new Object[] { auction },
+                            new Class[] { Auction.class },
+                            opts);
                     /* Sending closed auction to the SellerClient */
                     SealedObject sealedObject = new SealedObject(auction, encrypter);
                     System.out.println("seller client request handled");
@@ -307,16 +347,25 @@ public class Server implements AddrItem {
         return null;
     }
 
+    private static Object majority() throws Exception {
+        Map<Integer, Object> result = new HashMap<>();
+
+        if (rspList.getResults().isEmpty()) {
+            return null;
+        } else {
+            for (Object response : rspList.getResults()) {
+                if (!result.containsValue(response))
+                    result.put(1, response);
+                else {
+                    result.put(2, response);
+                }
+            }
+            return result.get(1);
+        }
+    }
+
     public static void main(String[] args) {
         try {
-
-            /* Adds test values to the @ServerDataManager class */
-            dataManager.fillAuctionItems();
-            dataManager.fillAuctions();
-
-            auctionItems = dataManager.getItems();
-            auctions = dataManager.getAuctions();
-
             /* Creates the server */
             Server s = new Server();
             String name = "myserver";
@@ -336,5 +385,4 @@ public class Server implements AddrItem {
             e.printStackTrace();
         }
     }
-
 }

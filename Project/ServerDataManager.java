@@ -13,31 +13,33 @@ public class ServerDataManager {
 
     /* Fills @auctioItems with test objects. */
     public void fillAuctionItems() {
-        int id;
-        AuctionItem item;
-        String titleArray[] = { "Bike", "Sunglasses", "Helmet", "Keyboard", "Guitar" };
-        String descriptionArray[] = { "Very fast.", "Black sunglasses.", "Predator Helmet 2009.",
-                "Ducky, Cherry Switches.", "Ibanez Les Paul." };
-        String publisherArray[] = { "Martin", "Maria", "Mr. Mathers", "Kumar", "Ajay" };
+        if (auctionItems.size() <= 0) {
+            int id;
+            AuctionItem item;
+            String titleArray[] = { "Bike", "Sunglasses", "Helmet", "Keyboard", "Guitar" };
+            String descriptionArray[] = { "Very fast.", "Black sunglasses.", "Predator Helmet 2009.",
+                    "Ducky, Cherry Switches.", "Ibanez Les Paul." };
+            String publisherArray[] = { "Martin", "Maria", "Mr. Mathers", "Kumar", "Ajay" };
 
-        for (int i = 0; i < 5; i++) {
-            id = rand.nextInt(10000);
-            item = new AuctionItem(id, titleArray[i], descriptionArray[i], publisherArray[i]);
-            auctionItems.add(item);
+            for (int i = 0; i < 5; i++) {
+                id = rand.nextInt(10000);
+                item = new AuctionItem(id, titleArray[i], descriptionArray[i], publisherArray[i]);
+                auctionItems.add(item);
+            }
         }
     }
 
     /* Fills @auctions with test objects. */
     public void fillAuctions() {
-        int id;
-        Auction auction;
-
-        for (int i = 0; i < 5; i++) {
-            id = rand.nextInt(10000);
-            auction = new Auction(id, auctionItems.get(i), rand.nextInt(1000), rand.nextInt(1000) + 2000);
-            auctions.add(auction);
+        if (auctions.size() <= 0) {
+            int id;
+            Auction auction;
+            for (int i = 0; i < 5; i++) {
+                id = rand.nextInt(10000);
+                auction = new Auction(id, auctionItems.get(i), rand.nextInt(1000), rand.nextInt(1000) + 2000);
+                auctions.add(auction);
+            }
         }
-
     }
 
     public ArrayList<Auction> getAuctions() {
